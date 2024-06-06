@@ -124,6 +124,9 @@ class ShuloGuti:
         font = pygame.font.Font(None, font_size)
         text_surface = font.render(text, True, color)
         self.screen.blit(text_surface, position)
+    
+    def draw_straight_lines(self):
+        pass
 
     def run(self):
         selected_guti_identifier = None
