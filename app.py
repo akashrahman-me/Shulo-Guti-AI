@@ -38,7 +38,7 @@ class ShuloGuti:
 
         # Initial board setup for protagonist (0) and antagonist (1)
         self.board = [
-            [['d47', 1], ['RvO', 2], ['fHD', 3], ['qOY', 4], ['AET', 5], ['tDy', 6], ['hiF', 7], ['rZs', 8], ['kM1', 9], ['AOQ', 10], ['P3U', 11], ['ZMP', 12], ['jCA', 13], ['Kdr', 14], ['qsl', 15], ['pG1', 16]],
+            [['d47', 1], ['RvO', 2], ['fHD', 3], ['qOY', 4], ['AET', 5], ['tDy', 6], ['hiF', 7], ['rZs', 8], ['kM1', 9], ['AOQ', 10], ['P3U', 11], ['ZMP', 12], ['jCA', 13], ['Kdr', 14], ['qsl', 15], ["pG1", 16]],
             [['PPA', 22], ['wau', 23], ['QHH', 24], ['MG6', 25], ['qme', 26], ['JX7', 27], ['pkz', 28], ['COl', 29], ['ae6', 30], ['m1i', 31], ['CzZ', 32], ['ZIk', 33], ['26o', 34], ['yq7', 35], ['aLN', 36], ['MS2', 37]]
         ]
 
@@ -71,12 +71,63 @@ class ShuloGuti:
             color = self.protagonist_color
         pygame.draw.circle(self.screen, color, position, self.circle_size)
 
-    def find_identifier(self, index):
+    def index_to_identifier(self, index):
         for row in self.board:
             for cell in row:
                 if cell[1] == index:
                     return cell[0]
         return False
+    
+    def identifier_to_index(self, key):
+        for sublist in self.board:
+            for pair in sublist:
+                if pair[0] == key:
+                    return pair[1]
+        return None
+
+    def get_guti_index(self, position):
+        x, y = position
+        tolerance = 10  # Half of the circle size to create a bounding box
+        
+        grid = [(i, j) for j in range(5) for i in range(5)]
+        
+        # Check for indices 7 to 31
+        for index in range(7, 32):
+            i, j = grid[index - 7]
+            expected_x = self.space + (self.circle_size / 3) + self.line_gap * i
+            expected_y = self.line_start + (self.circle_size / 3) + self.line_gap * j
+            if abs(x - expected_x) <= tolerance and abs(y - expected_y) <= tolerance:
+                return index
+        
+        # Check for indices 1 to 3
+        for i in range(3):
+            expected_x = self.line_gap + self.space + (self.circle_size / 3) + self.line_gap * i
+            expected_y = self.space + self.circle_size / 2
+            if abs(x - expected_x) <= tolerance and abs(y - expected_y) <= tolerance:
+                return i + 1
+
+        # Check for indices 4 to 6
+        for i in range(1, 4):
+            expected_x = self.line_gap * 0.5 * i + self.space + (self.circle_size / 3) + self.line_gap
+            expected_y = self.space + (self.circle_size / 10) + (self.line_gap / 2)
+            if abs(x - expected_x) <= tolerance and abs(y - expected_y) <= tolerance:
+                return i + 3
+
+        # Check for indices 35 to 37
+        for i in range(3):
+            expected_x = self.line_gap + self.space + (self.circle_size / 3) + self.line_gap * i
+            expected_y = self.space + (self.circle_size / 2) + self.line_gap * 6
+            if abs(x - expected_x) <= tolerance and abs(y - expected_y) <= tolerance:
+                return i + 35
+
+        # Check for indices 32 to 34
+        for i in range(1, 4):
+            expected_x = self.line_gap * 0.5 * i + self.space + (self.circle_size / 3) + self.line_gap
+            expected_y = self.space + (self.circle_size / 1) + (self.line_gap / 2) + self.line_gap * 5
+            if abs(x - expected_x) <= tolerance and abs(y - expected_y) <= tolerance:
+                return i + 31
+
+        return None  # If no index matches the given position
 
     def get_guti_position(self, index=1):
         grid = [(x, y) for y in range(5) for x in range(5)]
@@ -126,8 +177,48 @@ class ShuloGuti:
         self.screen.blit(text_surface, position)
     
     def draw_straight_lines(self):
-        pass
+        for index, line in enumerate(self.straight_lines):
+            start_pos = self.get_guti_position(line[0])
+            end_pos = self.get_guti_position(line[-1])
+            self.draw_line(start_pos, end_pos, 2 if index < 14 else 3)
 
+    def replace_index(self, code, new_index):
+        for sublist in self.board:
+            for item in sublist:
+                if item[0] == code:
+                    item[1] = new_index
+                    return self.board
+        return self.board
+
+    def move_eligiblity(self, selected_guti_identifier):
+        move_eligibilities = []
+        index = self.identifier_to_index(selected_guti_identifier)
+        position = self.get_guti_position(index)
+        pygame.draw.circle(self.screen, (255, 255, 255), position, 12, 2)
+
+        connected_lines = [line for line in self.straight_lines if index in line]
+        for line in connected_lines:
+            total_idx = len(line) - 1
+            idx = line.index(index)
+
+            neighbors = []
+            if idx == total_idx:
+                neighbors.append(line[idx - 1])
+            elif idx == 0:
+                neighbors.append(line[idx + 1])
+            else:
+                neighbors.extend([line[idx - 1], line[idx + 1]])
+
+            for neighbor in neighbors:
+                if not self.index_to_identifier(neighbor):
+                    move_eligibilities.append(neighbor)
+
+            for x in move_eligibilities:
+                pos = self.get_guti_position(x)
+                pygame.draw.circle(self.screen, (255, 255, 255), pos, 12, 2)
+
+        return move_eligibilities # list of index
+    
     def run(self):
         selected_guti_identifier = None
 
@@ -148,6 +239,8 @@ class ShuloGuti:
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = event.pos
+
+                    # Selection of Guti
                     for color, identifier, index in gutis_assign:
                         eligiblity = None
                         if self.current_turn == 0:
@@ -159,13 +252,21 @@ class ShuloGuti:
                         if self.is_guti_clicked(position, mouse_pos) and eligiblity:
                             selected_guti_identifier = identifier
 
+                    # Movement of Guti
+                    if selected_guti_identifier is not None:
+                        index = self.identifier_to_index(selected_guti_identifier)
+                        move_index = self.get_guti_index(mouse_pos)
+                        eligible_places = self.move_eligiblity(selected_guti_identifier)
+                        if move_index is not None and move_index in eligible_places:
+                            self.replace_index(selected_guti_identifier, move_index)
+                            self.current_turn = (self.current_turn + 1) % 2
+                            selected_guti_identifier = None
+
+
             self.screen.fill(self.bg_color)
 
             # Draw straight lines
-            for index, line in enumerate(self.straight_lines):
-                start_pos = self.get_guti_position(line[0])
-                end_pos = self.get_guti_position(line[-1])
-                self.draw_line(start_pos, end_pos, 2 if index < 14 else 3)
+            self.draw_straight_lines()
 
             # Draw Guti
             for color, identifier, index in gutis_assign:
@@ -173,29 +274,8 @@ class ShuloGuti:
                 self.draw_guti(position, color)
 
                 if selected_guti_identifier == identifier:
-                    pygame.draw.circle(self.screen, (255, 255, 255), position, 12, 2)
+                    self.move_eligiblity(selected_guti_identifier)
 
-                    connected_lines = [line for line in self.straight_lines if index in line]
-                    idxs = []
-                    for line in connected_lines:
-                        total_idx = len(line) - 1
-                        idx = line.index(index)
-
-                        neighbors = []
-                        if idx == total_idx:
-                            neighbors.append(line[idx - 1])
-                        elif idx == 0:
-                            neighbors.append(line[idx + 1])
-                        else:
-                            neighbors.extend([line[idx - 1], line[idx + 1]])
-
-                        for neighbor in neighbors:
-                            if not self.find_identifier(neighbor):
-                                idxs.append(neighbor)
-
-                        for x in idxs:
-                            pos = self.get_guti_position(x)
-                            pygame.draw.circle(self.screen, (255, 255, 255), pos, 12, 2)
             # Draw guti index
             # for index in range(1, 38):
             #     pos = self.get_guti_position(index)
