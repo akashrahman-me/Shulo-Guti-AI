@@ -206,7 +206,7 @@ class ShuloGuti:
         return self.board
     
     def index_to_stright_lines_points(self, index):
-        connected_lines = [line for line in self.straight_lines if index in line]
+        return [line for line in self.straight_lines if index in line]
 
     def move_eligiblity(self, selected_guti_identifier):
         move_eligibilities = []
