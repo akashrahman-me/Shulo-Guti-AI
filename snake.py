@@ -2,8 +2,6 @@ import pygame as pg
 import sys
 import os
 
-# Something went wrong here.
-
 os.environ['SDL_VIDEO_WINDOW_POS'] = "50, 308"
 
 class SnakeGame:
